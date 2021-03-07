@@ -3,6 +3,10 @@ Django Encrypted Files
 
 Encrypt files uploaded to your Django application.
 
+This package uses AES in CTR mode to encrypt files via an upload handler.
+
+The upload handler encrypts data as it is recieved during upload, so only encrypted data is ever written to temporary files.
+
 Usage
 -----
 

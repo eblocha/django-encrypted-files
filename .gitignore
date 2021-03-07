@@ -4,6 +4,8 @@
 /.venv
 /.vscode
 /core
+/testing
+/data
 /manage.py
 build/
 dist/
@@ -12,4 +14,5 @@ dist/
 *.py[cod]
 __pycache__/
 *.so
+*.sqlite3
 *~

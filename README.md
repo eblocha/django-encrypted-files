@@ -7,6 +7,13 @@ This package uses AES in CTR mode to encrypt files via an upload handler.
 
 The upload handler encrypts data as it is recieved during upload, so only encrypted data is ever written to temporary files.
 
+Installation
+------------
+Via pip:
+```
+pip install django-dencrypted-files
+```
+
 Usage
 -----
 

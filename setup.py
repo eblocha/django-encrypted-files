@@ -5,13 +5,13 @@ def read(fname):
     return open(os.path.join(os.path.dirname(__file__), fname)).read()
 
 setup(
-    name = "buffered_encryption",
-    version = "0.2.1",
+    name = "django_encrypted_files",
+    version = "0.0.0",
     author = "Elliott Blocha",
-    description = "Encrypt large files without loading the entire file into memory.",
+    description = "Encrypt files uploaded to a Django application.",
     license = "MIT",
     keywords = "cryptography, big, large, encryption",
-    packages=['buffered_encryption'],
+    packages=['encrypted_files'],
     long_description=read('README.md'),
     long_description_content_type="text/markdown",
     classifiers=[

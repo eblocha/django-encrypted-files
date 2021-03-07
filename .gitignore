@@ -4,6 +4,7 @@
 /.venv
 /.vscode
 /core
+/manage.py
 build/
 dist/
 *.egg-info/

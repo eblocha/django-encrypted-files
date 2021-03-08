@@ -18,6 +18,7 @@ Usage
 -----
 
 Add the `encrypted_files` app to your `INSTALLED_APPS` setting:
+
 `settings.py`
 ```python
 INSTALLED_APPS = [
@@ -45,6 +46,40 @@ FILE_UPLOAD_HANDLERS = [
 ]
 ```
 
+You can also use the encrypted file upload handler for a specific view:
+
+`views.py`
+```python
+from .models import ModelWithFile
+from encrypted_files.base import EncryptedFile as EF
+from django.core.files.uploadhandler import MemoryFileUploadHandler, TemporaryFileUploadHandler
+from django.views.generic.edit import CreateView
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_exempt, csrf_protect
+
+@method_decorator(csrf_exempt, 'dispatch')
+class CreateEncryptedFile(CreateView):
+    model = ModelWithFile
+    fields = ["file"]
+
+    def post(self, request, *args, **kwargs):
+        request.upload_handlers = [
+            EncryptedFileUploadHandler(request=request)
+            MemoryFileUploadHandler(request=request)
+            TemporaryFileUploadHandler(request=request)
+        ]  
+        return self._post(request)
+
+    @method_decorator(csrf_protect)
+    def _post(self, request):
+        form = self.get_form()
+        if form.is_valid():
+            return self.form_valid(form)
+        else:
+            return self.form_invalid(form)
+
+```
+
 Use regular FileFields for file uploads. When you want to decrypt the file, use the `EncryptedFile` helper class
 
 `views.py`
@@ -57,4 +92,16 @@ def decrypted(request,pk):
     f = ModelWithFile.objects.get(pk=pk).file
     ef = EF(f)
     return HttpResponse(ef.read())
+```
+
+The `EncryptedFile` class also takes a `key` input if you want to use a custom key (based on the user, for example):
+
+```python
+handler = EncryptedFileUploadHandler(request=request,key=custom_key_for_this_request)
+```
+
+You would then use the same key when decrypting:
+
+```python
+ef = EncryptedFile(file,key=custom_key_for_this_request)
 ```

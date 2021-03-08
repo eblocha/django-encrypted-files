@@ -7,6 +7,8 @@ This package uses AES in CTR mode to encrypt files via an upload handler.
 
 The upload handler encrypts data as it is recieved during upload, so only encrypted data is ever written to temporary files.
 
+Files can then be decrypted with the included `EncryptedFile` class, which is a file-like object that decrypts data transparently.
+
 Installation
 ------------
 Via pip:
@@ -51,7 +53,6 @@ You can also use the encrypted file upload handler for a specific view:
 `views.py`
 ```python
 from .models import ModelWithFile
-from encrypted_files.base import EncryptedFile as EF
 from django.core.files.uploadhandler import MemoryFileUploadHandler, TemporaryFileUploadHandler
 from django.views.generic.edit import CreateView
 from django.utils.decorators import method_decorator
@@ -85,16 +86,16 @@ Use regular FileFields for file uploads. When you want to decrypt the file, use 
 `views.py`
 ```python
 from .models import ModelWithFile
-from encrypted_files.base import EncryptedFile as EF
+from encrypted_files.base import EncryptedFile
 from django.http import HttpResponse
 
 def decrypted(request,pk):
     f = ModelWithFile.objects.get(pk=pk).file
-    ef = EF(f)
+    ef = EncryptedFile(f)
     return HttpResponse(ef.read())
 ```
 
-The `EncryptedFile` class also takes a `key` input if you want to use a custom key (based on the user, for example):
+The `EncryptedFileUploadHandler` and `EncryptedFile` classes also take a `key` input if you want to use a custom key (based on the user, for example):
 
 ```python
 handler = EncryptedFileUploadHandler(request=request,key=custom_key_for_this_request)
@@ -105,3 +106,6 @@ You would then use the same key when decrypting:
 ```python
 ef = EncryptedFile(file,key=custom_key_for_this_request)
 ```
+
+The `EncryptedFile` class is a wrapper around django's `File` class. It performs the decryption and counter/pointer management when .read() and .seek() are called. It can be used as a file-like object for other processing purposes, but is read-only.
+

@@ -7,10 +7,13 @@ class EncryptedFileUploadHandler(FileUploadHandler):
     """Encrypt data as it is uploaded"""
     def __init__(self, request=None, key=None):
         super().__init__(request=request)
+        self.key = key or settings.AES_KEY
+    
+    def new_file(self, *args, **kwargs):
         self.nonce = os.urandom(16)
-        key = key or settings.AES_KEY
-        self.encryptor = Cipher(algorithms.AES(key),modes.CTR(self.nonce)).encryptor()
+        self.encryptor = Cipher(algorithms.AES(self.key),modes.CTR(self.nonce)).encryptor()
         self.nonce_passed = False
+        return super().new_file(*args,**kwargs)
 
     def receive_data_chunk(self, raw_data, start):
         if not self.nonce_passed:

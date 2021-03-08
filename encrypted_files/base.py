@@ -2,12 +2,13 @@ import os
 import io
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from django.conf import settings
+from django.core.files import File
 
-class EncryptedFile:
+class EncryptedFile(File):
     BLOCK_SIZE = 16
 
     def __init__(self, file, key=None):
-        self.file = file
+        super().__init__(file,name=None)
         self.key = key or settings.AES_KEY
         self.counter = 0
         self.offset = 0
@@ -16,6 +17,13 @@ class EncryptedFile:
         self.file.seek(0)
         self.nonce = self.file.read(self.BLOCK_SIZE)
         self.seek(pos)
+    
+    def __iter__(self):
+        while True:
+            data = self.read(self.DEFAULT_CHUNK_SIZE)
+            if not data:
+                break
+            yield data
     
     @classmethod
     def add_int_to_bytes(cls, b, i):
@@ -41,21 +49,33 @@ class EncryptedFile:
     def read(self, size: int = -1) -> bytes:
         """Read and decrypt bytes from the buffer"""
         # Ensure we are requesting multiples of 16 bytes, unless we are at the end of the stream
-        if size == 0:
+        size_w_ofset = size + self.offset
+        new_offset = size_w_ofset % self.BLOCK_SIZE
+
+        if size < 0:
+            full_size = -1
+            new_offset = self.size % self.BLOCK_SIZE
+        elif size == 0:
             return b""
-        elif (size > 0) and (size % self.BLOCK_SIZE != 0):
-            full_size = size - (size % self.BLOCK_SIZE) + self.BLOCK_SIZE
+        elif new_offset != 0:
+            full_size = size_w_ofset - new_offset + self.BLOCK_SIZE
         else:
-            # Whole file is requested, or multiple of 16
-            full_size = size
+            # multiple of 16
+            full_size = size_w_ofset
 
         encrypted_data = self.file.read(full_size)
         decrypted_data = self.decryptor.update(encrypted_data)
-        self.counter += len(encrypted_data) // self.BLOCK_SIZE
+
+        self.counter += (len(encrypted_data) - (self.BLOCK_SIZE if new_offset!=0 else 0)) // self.BLOCK_SIZE
+        
         if size < 0:
-            return decrypted_data[self.offset :]
+            return_data = decrypted_data[self.offset :]
         else:
-            return decrypted_data[self.offset : self.offset + size]
+            return_data = decrypted_data[self.offset : self.offset + size]
+            if new_offset != 0:
+                self.file.seek(-self.BLOCK_SIZE,os.SEEK_CUR)
+        self.offset = new_offset
+        return return_data
 
     def seek(self, offset: int, whence: int = os.SEEK_SET) -> int:
         """Seek to a position in the decrypted buffer"""
@@ -63,6 +83,8 @@ class EncryptedFile:
             pos = offset
         elif whence==os.SEEK_CUR:
             pos = offset + self.tell()
+        elif whence==os.SEEK_END:
+            pos = offset + self.size - self.BLOCK_SIZE
         else:
             raise NotImplementedError(f"Whence of '{whence}' is not supported.")
         # Move the cursor to the start of the block

@@ -5,10 +5,11 @@ from django.core.files.uploadhandler import FileUploadHandler
 
 class EncryptedFileUploadHandler(FileUploadHandler):
     """Encrypt data as it is uploaded"""
-    def __init__(self, request=None):
+    def __init__(self, request=None, key=None):
         super().__init__(request=request)
         self.nonce = os.urandom(16)
-        self.encryptor = Cipher(algorithms.AES(settings.AES_KEY),modes.CTR(self.nonce)).encryptor()
+        key = key or settings.AES_KEY
+        self.encryptor = Cipher(algorithms.AES(key),modes.CTR(self.nonce)).encryptor()
         self.nonce_passed = False
 
     def receive_data_chunk(self, raw_data, start):

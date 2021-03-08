@@ -11,7 +11,7 @@ Installation
 ------------
 Via pip:
 ```
-pip install django-dencrypted-files
+pip install django-encrypted-files
 ```
 
 Usage
@@ -64,8 +64,8 @@ class CreateEncryptedFile(CreateView):
 
     def post(self, request, *args, **kwargs):
         request.upload_handlers = [
-            EncryptedFileUploadHandler(request=request)
-            MemoryFileUploadHandler(request=request)
+            EncryptedFileUploadHandler(request=request),
+            MemoryFileUploadHandler(request=request),
             TemporaryFileUploadHandler(request=request)
         ]  
         return self._post(request)

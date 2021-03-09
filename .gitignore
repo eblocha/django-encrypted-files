@@ -17,3 +17,5 @@ __pycache__/
 *.sqlite3
 *~
 .hypothesis
+.coverage
+/htmlcov

@@ -2,11 +2,12 @@ from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from .base import EncryptedFile
 import os
 import io
-from hypothesis.extra.django import TestCase
+import unittest
+# from hypothesis.extra.django import TestCase
 from hypothesis import given, strategies as st
 
 
-class TestSymmetry(TestCase):
+class TestSymmetry(unittest.TestCase):
     def setUp(self):
         key = os.urandom(32)
         decrypted = b"\xff"*130399
@@ -34,9 +35,14 @@ class TestSymmetry(TestCase):
     def test_read(self,size):
         self.read_test(size)
     
-    @given(st.integers(min_value=0,max_value=130399),st.just(0))
-    def test_seek(self,offset,whence):
-        self.seek(offset,whence)
+    @given(st.integers(min_value=0,max_value=130399))
+    def test_seek(self,offset):
+        self.seek(offset)
+        self.tell_test()
+    
+    @given(st.integers(min_value=-130399,max_value=0))
+    def test_seek_end(self,offset):
+        self.seek(offset,os.SEEK_END)
         self.tell_test()
     
     @given(st.integers(min_value=0,max_value=130399),st.integers(-1,130399))

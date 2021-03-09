@@ -46,12 +46,16 @@ class EncryptedFile(File):
     def decryptor(self):
         return self.cipher.decryptor()
     
+    @property
+    def size(self):
+        return super().size - self.BLOCK_SIZE
+    
     def read(self, size: int = -1) -> bytes:
         """Read and decrypt bytes from the buffer"""
         # Ensure we are requesting multiples of 16 bytes, unless we are at the end of the stream
 
         # only request up to the end of the file
-        size = min(size, self.size - self.BLOCK_SIZE - self.tell())
+        size = min(size, self.size - self.tell())
 
         size_w_ofset = size + self.offset
         new_offset = size_w_ofset % self.BLOCK_SIZE
@@ -88,7 +92,7 @@ class EncryptedFile(File):
         elif whence==os.SEEK_CUR:
             pos = offset + self.tell()
         elif whence==os.SEEK_END:
-            pos = offset + self.size - self.BLOCK_SIZE
+            pos = offset + self.size
         else:
             raise NotImplementedError(f"Whence of '{whence}' is not supported.")
         # Move the cursor to the start of the block

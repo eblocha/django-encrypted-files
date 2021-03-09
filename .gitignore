@@ -16,3 +16,4 @@ __pycache__/
 *.so
 *.sqlite3
 *~
+.hypothesis

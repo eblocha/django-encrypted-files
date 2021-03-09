@@ -49,6 +49,10 @@ class EncryptedFile(File):
     def read(self, size: int = -1) -> bytes:
         """Read and decrypt bytes from the buffer"""
         # Ensure we are requesting multiples of 16 bytes, unless we are at the end of the stream
+
+        # only request up to the end of the file
+        size = min(size, self.size - self.BLOCK_SIZE - self.tell())
+
         size_w_ofset = size + self.offset
         new_offset = size_w_ofset % self.BLOCK_SIZE
 

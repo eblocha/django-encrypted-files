@@ -55,3 +55,23 @@ class TestSymmetry(unittest.TestCase):
         self.read(size)
         self.seek(offset)
         self.tell_test()
+    
+    def test_read_end_negative(self):
+        self.read()
+        self.read_test(-1)
+    
+    def test_read_end_positive(self):
+        self.read()
+        self.read_test(100)
+
+class TestCounterOverflow(TestSymmetry):
+    def setUp(self):
+        key = os.urandom(32)
+        decrypted = b"\xff"*130399
+        nonce = b"\xff"*16
+        cipher = Cipher(algorithms.AES(key),modes.CTR(nonce)).encryptor()
+        encrypted = nonce + cipher.update(decrypted)
+        encrypted = io.BytesIO(encrypted)
+        encrypted.seek(0)
+        self.ef = EncryptedFile(encrypted,key=key)
+        self.decrypted = io.BytesIO(decrypted)

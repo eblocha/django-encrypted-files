@@ -14,10 +14,12 @@ class TestSymmetry(unittest.TestCase):
         key = os.urandom(32)
         decrypted = b"\xff"*SIZE
         nonce = os.urandom(16)
+        self.boilerplate(key,decrypted,nonce)
+    
+    def boilerplate(self,key,decrypted,nonce):
         cipher = Cipher(algorithms.AES(key),modes.CTR(nonce)).encryptor()
         encrypted = nonce + cipher.update(decrypted)
         encrypted = io.BytesIO(encrypted)
-        encrypted.seek(0)
         self.ef = EncryptedFile(encrypted,key=key)
         self.decrypted = io.BytesIO(decrypted)
     
@@ -71,21 +73,11 @@ class TestCounterOverflow(TestSymmetry):
         key = os.urandom(32)
         decrypted = b"\xff"*SIZE
         nonce = b"\xff"*16
-        cipher = Cipher(algorithms.AES(key),modes.CTR(nonce)).encryptor()
-        encrypted = nonce + cipher.update(decrypted)
-        encrypted = io.BytesIO(encrypted)
-        encrypted.seek(0)
-        self.ef = EncryptedFile(encrypted,key=key)
-        self.decrypted = io.BytesIO(decrypted)
+        self.boilerplate(key,decrypted,nonce)
 
 class TestCounterZero(TestSymmetry):
     def setUp(self):
         key = os.urandom(32)
         decrypted = b"\xff"*SIZE
         nonce = bytes(16)
-        cipher = Cipher(algorithms.AES(key),modes.CTR(nonce)).encryptor()
-        encrypted = nonce + cipher.update(decrypted)
-        encrypted = io.BytesIO(encrypted)
-        encrypted.seek(0)
-        self.ef = EncryptedFile(encrypted,key=key)
-        self.decrypted = io.BytesIO(decrypted)
+        self.boilerplate(key,decrypted,nonce)

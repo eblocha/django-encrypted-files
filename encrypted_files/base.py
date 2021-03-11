@@ -62,45 +62,12 @@ class EncryptedFile(File):
         if size == 0:
             return b""
         else:
-            # See how much data is left in the file
-            curr_pos = self.tell()
-            size_rest = self.size - curr_pos
-            get_rest = size < 0 or size >= size_rest
-            if get_rest and size_rest:
-                # rest of data is requested, read and decrypt it
-                encrypted_data = self.file.read()
-                decrypted_data = self.decryptor.update(encrypted_data)
-                to_return = decrypted_data[self.offset :]
-                # get the counter value and offset
-                self.counter, self.offset = divmod(size_rest,self.BLOCK_SIZE)
-                # Always ensure underlying pointer is at the start of a block
-                self.file.seek(-self.offset,os.SEEK_END)
-                return to_return
-            elif get_rest:
-                # No data left
-                return b""
-            else:
-                # Only some of the remaining data was requested
-                end_pos = curr_pos + size
-                new_counter, new_offset = divmod(end_pos,self.BLOCK_SIZE)
-                
-                # How many bytes to the end of the block
-                to_block_end = self.BLOCK_SIZE - new_offset if new_offset else 0
-                
-                # decrypt
-                encrypted_data = self.file.read(self.offset + size + to_block_end)
-                decrypted_data = self.decryptor.update(encrypted_data)
-                
-                # slice out data to return
-                to_return = decrypted_data[self.offset : self.offset + size]
-                
-                # Seek file back to start of correct block
-                self.file.seek(end_pos - new_offset + self.BLOCK_SIZE)
-
-                # Set counter and offset
-                self.counter, self.offset = new_counter, new_offset
-                
-                return to_return
+            # read data, zero-pad with offset bytes at start
+            encrypted_data = self.file.read(size)
+            decrypted_data = self.decryptor.update(bytes(self.offset) + encrypted_data)
+            to_return = decrypted_data[self.offset :]
+            self.counter, self.offset = divmod(self.tell(),self.BLOCK_SIZE)
+            return to_return
 
     def seek(self, offset: int, whence: int = os.SEEK_SET) -> int:
         """Seek to a position in the decrypted buffer"""
@@ -115,10 +82,10 @@ class EncryptedFile(File):
         # Move the cursor to the start of the block
         # Keep track of how far into the current block we are
         self.counter, self.offset = divmod(pos,self.BLOCK_SIZE)
-        self.file.seek(pos - self.offset + self.BLOCK_SIZE)
+        self.file.seek(pos + self.BLOCK_SIZE)
         return pos
 
     def tell(self) -> int:
         # The cursor position in the underlying encrypted buffer is always at the start of a block.
         # Add on the offset into the block for arbitrary access
-        return self.file.tell() + self.offset - self.BLOCK_SIZE
+        return self.file.tell() - self.BLOCK_SIZE

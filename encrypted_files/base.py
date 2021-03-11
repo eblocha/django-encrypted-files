@@ -28,14 +28,14 @@ class EncryptedFile(File):
             yield data
 
     @classmethod
-    def add_int_to_bytes(cls, b, i):
+    def add_int_to_bytes(cls, b: bytes, i: int) -> bytes:
         """Add an integer to a byte string"""
         # OpenSSL uses big-endian for CTR
         # If the counter overflows, it wraps back to zero
         i = int.from_bytes(b, byteorder="big") + i
         # Get number of bytes needed to represent the un-wrapped int
-        length = (i.bit_length() + 7) >> 3 # same as // 8
-        length = max(16,length)
+        length = (i.bit_length() + 7) >> 3  # same as // 8
+        length = max(16, length)
         # cast to bytes and use the last 16 to get the wrapped bytes without modulo
         b = i.to_bytes(length, "big")
         return b[-16:]
@@ -66,7 +66,7 @@ class EncryptedFile(File):
             encrypted_data = self.file.read(size)
             decrypted_data = self.decryptor.update(bytes(self.offset) + encrypted_data)
             to_return = decrypted_data[self.offset :]
-            self.counter, self.offset = divmod(self.tell(),self.BLOCK_SIZE)
+            self.counter, self.offset = divmod(self.tell(), self.BLOCK_SIZE)
             return to_return
 
     def seek(self, offset: int, whence: int = os.SEEK_SET) -> int:
@@ -81,7 +81,7 @@ class EncryptedFile(File):
             raise NotImplementedError(f"Whence of '{whence}' is not supported.")
         # Move the cursor to the start of the block
         # Keep track of how far into the current block we are
-        self.counter, self.offset = divmod(pos,self.BLOCK_SIZE)
+        self.counter, self.offset = divmod(pos, self.BLOCK_SIZE)
         self.file.seek(pos + self.BLOCK_SIZE)
         return pos
 

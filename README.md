@@ -129,27 +129,5 @@ When the file starts the upload, the `EncryptedFileUploadHandler` adds 16 bytes 
 
 When the file needs to be decrypted, the `EncryptedFile` helper will read the first 16 bytes to get the nonce, then expose the rest of the file as if it starts at position 0. Methods like `.seek()` and `.tell()` are automatically corrected to make the file act like it's not encrypted at all.
 
-In order to decrypt arbitrary amounts of data from arbitrary positions, the `EncryptedFile` class automatically loads enough 16-byte blocks to decrypt, then strips away the unneeded data. The cursor in the underlying encrypted file is always at the start of a block
-
-```
-        v .seek(4) will move here internally
-[nonce][0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15][16 17 18 ...
-              ^ but a subsequent .read(5) will start here
-        |-----------------------------------| The underlying read will read this
-              |-------| but return this data, decrypted
-```
-
-Another example:
-```
-        v .seek(12) moves here internally
-[nonce][0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15][16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31]
-                                  ^ The "decrypted" pointer moves here
-        call .read(6)             |                |
-        |------------------------------------------------------------------------------------| This is read
-                                  |----------------| This is returned
-                                               ^ the internal pointer ends up here (pos 16)
-                                                     ^ the "decrypted" pointer ends up here (pos 18)
-```
-
 ### Counters
 When blocks are read, the counter is updated as well, based on where the internal pointer ends up. In the event of a counter overflow, it will wrap back to zero. This is the same behavior that the `cryptography` package uses internally.

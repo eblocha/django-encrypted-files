@@ -7,7 +7,7 @@ import unittest
 from hypothesis import given, strategies as st
 
 
-SIZE = 59
+SIZE = 130399
 
 class TestSymmetry(unittest.TestCase):
     def setUp(self):
@@ -81,3 +81,16 @@ class TestCounterZero(TestSymmetry):
         decrypted = b"\xff"*SIZE
         nonce = bytes(16)
         self.boilerplate(key,decrypted,nonce)
+
+class TestIerator(unittest.TestCase):
+    
+    @given(st.integers(0,64 * 1024 * 5))
+    def test_iterator(self,size):
+        key = os.urandom(32)
+        decrypted = b"\xff"*size
+        nonce = os.urandom(16)
+        cipher = Cipher(algorithms.AES(key),modes.CTR(nonce)).encryptor()
+        encrypted = nonce + cipher.update(decrypted)
+        encrypted = io.BytesIO(encrypted)
+        ef = EncryptedFile(encrypted,key=key)
+        self.assertEqual(decrypted,b"".join([d for d in ef]))

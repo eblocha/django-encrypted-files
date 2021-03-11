@@ -3,6 +3,7 @@ import io
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from django.conf import settings
 from django.core.files import File
+from django.utils.functional import cached_property
 
 
 class EncryptedFile(File):
@@ -33,7 +34,8 @@ class EncryptedFile(File):
         # If the counter overflows, it wraps back to zero
         i = int.from_bytes(b, byteorder="big") + i
         # Get number of bytes needed to represent the un-wrapped int
-        length = (i.bit_length() + 7) >> 3
+        length = (i.bit_length() + 7) >> 3 # same as // 8
+        length = max(16,length)
         # cast to bytes and use the last 16 to get the wrapped bytes without modulo
         b = i.to_bytes(length, "big")
         return b[-16:]
@@ -50,47 +52,56 @@ class EncryptedFile(File):
     def decryptor(self):
         return self.cipher.decryptor()
 
-    @property
+    @cached_property
     def size(self):
         return super().size - self.BLOCK_SIZE
 
     def read(self, size: int = -1) -> bytes:
         """Read and decrypt bytes from the buffer"""
-        # Ensure we are requesting multiples of 16 bytes, unless we are at the end of the stream
-        size_rest = self.size - self.tell()
-        if size == 0 or size_rest == 0:
+        # Return right away if no bytes requested
+        if size == 0:
             return b""
-
-        # only request up to the end of the file
-        size = min(size, size_rest)
-
-        size_w_ofset = size + self.offset
-        new_offset = size_w_ofset % self.BLOCK_SIZE
-
-        if size < 0:
-            full_size = -1
-            new_offset = self.size % self.BLOCK_SIZE
-        elif new_offset != 0:
-            full_size = size_w_ofset - new_offset + self.BLOCK_SIZE
         else:
-            # multiple of 16
-            full_size = size_w_ofset
+            # See how much data is left in the file
+            curr_pos = self.tell()
+            size_rest = self.size - curr_pos
+            get_rest = size < 0 or size >= size_rest
+            if get_rest and size_rest:
+                size = -1
+                # rest of data is requested, read and decrypt it
+                encrypted_data = self.file.read(size)
+                decrypted_data = self.decryptor.update(encrypted_data)
+                to_return = decrypted_data[self.offset :]
+                # get the counter value and offset
+                self.counter, self.offset = divmod(size_rest,self.BLOCK_SIZE)
+                # Always ensure underlying pointer is at the start of a block
+                self.file.seek(-self.offset,os.SEEK_END)
+                return to_return
+            elif get_rest:
+                # No data left
+                return b""
+            else:
+                # Only some of the remaining data was requested
+                end_pos = curr_pos + size
+                new_counter, new_offset = divmod(end_pos,self.BLOCK_SIZE)
+                
+                # How many bytes to the end of the block
+                to_block_end = self.BLOCK_SIZE - new_offset if new_offset else 0
+                
+                # decrypt
+                encrypted_data = self.file.read(self.offset + size + to_block_end)
+                decrypted_data = self.decryptor.update(encrypted_data)
+                
+                # slice out data to return
+                to_return = decrypted_data[self.offset : self.offset + size]
+                
+                # Seek file back to start of correct block
+                self.file.seek(end_pos - new_offset + self.BLOCK_SIZE)
 
-        encrypted_data = self.file.read(full_size)
-        decrypted_data = self.decryptor.update(encrypted_data)
-
-        self.counter += (
-            len(encrypted_data) - (self.BLOCK_SIZE if new_offset != 0 else 0)
-        ) // self.BLOCK_SIZE
-
-        if size < 0:
-            return_data = decrypted_data[self.offset :]
-        else:
-            return_data = decrypted_data[self.offset : self.offset + size]
-            if new_offset != 0:
-                self.file.seek(-self.BLOCK_SIZE, os.SEEK_CUR)
-        self.offset = new_offset
-        return return_data
+                # Set counter and offset
+                self.counter, self.offset = new_counter, new_offset
+                
+                return to_return
 
     def seek(self, offset: int, whence: int = os.SEEK_SET) -> int:
         """Seek to a position in the decrypted buffer"""
@@ -104,12 +115,8 @@ class EncryptedFile(File):
             raise NotImplementedError(f"Whence of '{whence}' is not supported.")
         # Move the cursor to the start of the block
         # Keep track of how far into the current block we are
-        self.offset = pos % self.BLOCK_SIZE
-        real_pos = pos - self.offset
-        self.counter = real_pos // self.BLOCK_SIZE
-        # bump it 16 more bytes to account for the nonce at the beginning
-        real_pos += self.BLOCK_SIZE
-        self.file.seek(real_pos)
+        self.counter, self.offset = divmod(pos,self.BLOCK_SIZE)
+        self.file.seek(pos - self.offset + self.BLOCK_SIZE)
         return pos
 
     def tell(self) -> int:

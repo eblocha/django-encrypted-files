@@ -67,9 +67,8 @@ class EncryptedFile(File):
             size_rest = self.size - curr_pos
             get_rest = size < 0 or size >= size_rest
             if get_rest and size_rest:
-                size = -1
                 # rest of data is requested, read and decrypt it
-                encrypted_data = self.file.read(size)
+                encrypted_data = self.file.read()
                 decrypted_data = self.decryptor.update(encrypted_data)
                 to_return = decrypted_data[self.offset :]
                 # get the counter value and offset

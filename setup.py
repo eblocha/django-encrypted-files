@@ -6,7 +6,7 @@ def read(fname):
 
 setup(
     name = "django_encrypted_files",
-    version = "0.0.8",
+    version = "0.0.9",
     author = "Elliott Blocha",
     description = "Encrypt files uploaded to a Django application.",
     license = "MIT",

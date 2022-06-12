@@ -1,9 +1,8 @@
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-from .base import EncryptedFile
+from encrypted_files.base import EncryptedFile
 import os
 import io
 import unittest
-# from hypothesis.extra.django import TestCase
 from hypothesis import given, strategies as st
 
 

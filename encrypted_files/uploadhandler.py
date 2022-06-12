@@ -9,8 +9,11 @@ class EncryptedFileUploadHandler(FileUploadHandler):
         super().__init__(request=request)
         self.key = key or settings.AES_KEY
     
+    def generate_nonce(self):
+        return os.urandom(16)
+    
     def new_file(self, *args, **kwargs):
-        self.nonce = os.urandom(16)
+        self.nonce = self.generate_nonce()
         self.encryptor = Cipher(algorithms.AES(self.key),modes.CTR(self.nonce)).encryptor()
         self.nonce_passed = False
         return super().new_file(*args,**kwargs)

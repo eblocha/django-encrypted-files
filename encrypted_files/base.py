@@ -1,5 +1,4 @@
 import os
-import io
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from django.conf import settings
 from django.core.files import File
@@ -27,8 +26,8 @@ class EncryptedFile(File):
                 break
             yield data
 
-    @classmethod
-    def add_int_to_bytes(cls, b: bytes, i: int) -> bytes:
+    @staticmethod
+    def add_int_to_bytes(b: bytes, i: int) -> bytes:
         """Add an integer to a byte string"""
         # OpenSSL uses big-endian for CTR
         # If the counter overflows, it wraps back to zero
@@ -86,6 +85,5 @@ class EncryptedFile(File):
         return pos
 
     def tell(self) -> int:
-        # The cursor position in the underlying encrypted buffer is always at the start of a block.
-        # Add on the offset into the block for arbitrary access
+        # Remove the nonce bytes from the cursor position
         return self.file.tell() - self.BLOCK_SIZE

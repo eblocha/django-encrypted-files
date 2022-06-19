@@ -1,5 +1,4 @@
-Django Encrypted Files
-======================
+# Django Encrypted Files
 
 Encrypt files uploaded to your Django application.
 
@@ -9,19 +8,20 @@ The upload handler encrypts data as it is recieved during upload, so only encryp
 
 Files can then be decrypted with the included `EncryptedFile` class, which is a file-like object that decrypts data transparently.
 
-Installation
-------------
+## Installation
+
 Via pip:
+
 ```
 pip install django-encrypted-files
 ```
 
-Usage
------
+## Usage
 
 Add the `encrypted_files` app to your `INSTALLED_APPS` setting:
 
 `settings.py`
+
 ```python
 INSTALLED_APPS = [
     ...
@@ -33,6 +33,7 @@ INSTALLED_APPS = [
 Add an encryption key to use. This should be 16, 24, or 32 bytes long:
 
 `settings.py`
+
 ```python
 AES_KEY = b'\x1a>\xf8\xcd\xe2\x8e_~V\x14\x98\xc2\x1f\xf9\xea\xf8\xd7c\xb3`!d\xd4\xe3+\xf7Q\x83\xb5~\x8f\xdd'
 ```
@@ -40,6 +41,7 @@ AES_KEY = b'\x1a>\xf8\xcd\xe2\x8e_~V\x14\x98\xc2\x1f\xf9\xea\xf8\xd7c\xb3`!d\xd4
 If you want to encrypt ALL uploaded files, add the `EncryptedFileUploadHandler` as the first handler:
 
 `settings.py`
+
 ```python
 FILE_UPLOAD_HANDLERS = [
     "encrypted_files.uploadhandler.EncryptedFileUploadHandler",
@@ -51,6 +53,7 @@ FILE_UPLOAD_HANDLERS = [
 You can also use the encrypted file upload handler for a specific view:
 
 `views.py`
+
 ```python
 from .models import ModelWithFile
 from django.core.files.uploadhandler import MemoryFileUploadHandler, TemporaryFileUploadHandler
@@ -67,8 +70,8 @@ class CreateEncryptedFile(CreateView):
         request.upload_handlers = [
             EncryptedFileUploadHandler(request=request),
             MemoryFileUploadHandler(request=request),
-            TemporaryFileUploadHandler(request=request)
-        ]  
+            TemporaryFileUploadHandler(request=request),
+        ]
         return self._post(request)
 
     @method_decorator(csrf_protect)
@@ -84,6 +87,7 @@ class CreateEncryptedFile(CreateView):
 Use regular FileFields for file uploads. When you want to decrypt the file, use the `EncryptedFile` helper class
 
 `views.py`
+
 ```python
 from .models import ModelWithFile
 from encrypted_files.base import EncryptedFile
@@ -92,25 +96,25 @@ from django.http import HttpResponse
 def decrypted(request,pk):
     f = ModelWithFile.objects.get(pk=pk).file
     ef = EncryptedFile(f)
-    return HttpResponse(ef.read())
+    # this example is for a text file. Set content_type based on your file's data.
+    return HttpResponse(ef.read(), content_type="text/plain")
 ```
 
 The `EncryptedFileUploadHandler` and `EncryptedFile` classes also take a `key` input if you want to use a custom key (based on the user, for example):
 
 ```python
-handler = EncryptedFileUploadHandler(request=request,key=custom_key_for_this_request)
+handler = EncryptedFileUploadHandler(request=request, key=custom_key_for_this_request)
 ```
 
 You would then use the same key when decrypting:
 
 ```python
-ef = EncryptedFile(file,key=custom_key_for_this_request)
+ef = EncryptedFile(file, key=custom_key_for_this_request)
 ```
 
 The `EncryptedFile` class is a wrapper around django's `File` class. It performs the decryption and counter/pointer management when .read() and .seek() are called. It can be used as a file-like object for other processing purposes, but is read-only.
 
-How It Works
-------------
+## How It Works
 
 When a file is POSTed to your application, its raw byte data is passed through a series of upload handlers. The default behavior is to load the file into memory if it is small, or stream it to a temporary file if large. Then, it's moved to its "upload_to" location.
 
@@ -120,7 +124,7 @@ The `EncryptedFileUploadHandler` acts as a barrier between these default handler
 raw bytes -> Encryption -> temp file -> final file
 ```
 
-When the file starts the upload, the `EncryptedFileUploadHandler` adds 16 bytes to the start of the file. This is the nonce used to encrypt the data. 
+When the file starts the upload, the `EncryptedFileUploadHandler` adds 16 bytes to the start of the file. This is the nonce used to encrypt the data.
 
 ```
 [16-byte nonce][...rest of the file (encrypted)...]
@@ -130,4 +134,5 @@ When the file starts the upload, the `EncryptedFileUploadHandler` adds 16 bytes 
 When the file needs to be decrypted, the `EncryptedFile` helper will read the first 16 bytes to get the nonce, then expose the rest of the file as if it starts at position 0. Methods like `.seek()` and `.tell()` are automatically corrected to make the file act like it's not encrypted at all.
 
 ### Counters
+
 When blocks are read, the counter is updated as well, based on where the internal pointer ends up. In the event of a counter overflow, it will wrap back to zero. This is the same behavior that the `cryptography` package uses internally.
